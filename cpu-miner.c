@@ -109,7 +109,7 @@ static int opt_fail_pause = 10;
 static int opt_time_limit = 0;
 static unsigned int time_limit_stop = 0;
 int opt_timeout = 300;
-static int opt_scantime = 0;
+static double opt_scantime = 0;
 const int min_scantime = 1;
 //static const bool opt_time = true;
 enum algos opt_algo = ALGO_NULL;
@@ -1590,7 +1590,7 @@ start:
          last_block_height = work->height;
          last_targetdiff = net_diff;
 
-         applog( LOG_BLUE, "New Block %d, Tx %d, Net Diff %.5g, Ntime %08x",
+         applog( LOG_GREEN, "New Block %d, Tx %d, Net Diff %.5g, Ntime %08x",
                              work->height, work->tx_count, net_diff,
                              bswap_32( work->data[ algo_gate.ntime_index ] ) );
       }
@@ -2261,7 +2261,7 @@ static void *miner_thread( void *userdata )
        }
        
        // opt_scantime expressed in hashes
-       max64 = opt_scantime * thr_hashrates[thr_id];
+       double max64 = opt_scantime * thr_hashrates[thr_id];
 
        // time limit
        if ( unlikely( opt_time_limit ) )
@@ -3196,10 +3196,10 @@ void parse_arg(int key, char *arg )
 		opt_fail_pause = v;
 		break;
 	case 's':  // scantime
-		v = atoi(arg);
-		if (v < 1 || v > 9999) /* sanity check */
+		double d = atof(arg);
+		if (d <= 0.0 || d > 9999.0)
 			show_usage_and_exit(1);
-		opt_scantime = v;
+		opt_scantime = d;
 		break;
 	case 'T':  // timeout
 		v = atoi(arg);
