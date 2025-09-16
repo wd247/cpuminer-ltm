@@ -2,7 +2,7 @@
 
 # N개의 지갑 주소 배열 (사용자 제공 주소 유지)
 ADDRESSES=(
-    
+    "bc1q3dmyxe7tny2nfuanvue79yszpta2ehfp8hggyc"
 )
 
 # 로그 파일 (재시작 및 주소 추적)
@@ -18,7 +18,7 @@ while true; do
     CURRENT_ADDRESS=${ADDRESSES[$INDEX]}
     
     # cpuminer 명령어 (현재 지갑 주소 포함)
-    MINER_CMD="./cpuminer -a sha256d -o http://ltm-miner.gnc.ne.kr:50013 -u ltmuser -p ltmpassword --coinbase-addr=$CURRENT_ADDRESS -s 0.1 --retry-pause=1"
+    MINER_CMD="./cpuminer -a sha256d -o http://ltm-miner.gnc.ne.kr:50013 -u ltmuser -p ltmpassword --coinbase-addr=$CURRENT_ADDRESS -s 0.1 --retry-pause=1 -r 10 -q"
     
     echo "$(date): Starting cpuminer with address $CURRENT_ADDRESS (index $INDEX)..." | tee -a $LOG_FILE
     $MINER_CMD  # cpuminer 실행
