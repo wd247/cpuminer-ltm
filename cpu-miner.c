@@ -105,7 +105,7 @@ static bool opt_background = false;
 bool opt_quiet = false;
 bool opt_randomize = false;
 static int opt_retries = -1;
-static int opt_fail_pause = 10;
+static double opt_fail_pause = 10;
 static int opt_time_limit = 0;
 static unsigned int time_limit_stop = 0;
 int opt_timeout = 300;
@@ -3190,10 +3190,10 @@ void parse_arg(int key, char *arg )
 		opt_retries = v;
 		break;
    case 1025:  // retry-pause
-      v = atoi(arg);
-		if (v < 1 || v > 9999) /* sanity check */
+      double e = atof(arg);
+		if (e < 0.0 || e > 9999.0) /* sanity check */
 			show_usage_and_exit(1);
-		opt_fail_pause = v;
+		opt_fail_pause = e;
 		break;
 	case 's':  // scantime
 		double d = atof(arg);
