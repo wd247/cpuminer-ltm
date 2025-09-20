@@ -110,7 +110,7 @@ static int opt_time_limit = 0;
 static unsigned int time_limit_stop = 0;
 int opt_timeout = 300;
 static double opt_scantime = 0;
-const int min_scantime = 0;  // 최소 스캔타임 제한 제거 (0.1초 허용)
+const int min_scantime = 1;
 //static const bool opt_time = true;
 enum algos opt_algo = ALGO_NULL;
 char* opt_param_key = NULL;
@@ -220,7 +220,7 @@ static char const short_options[] =
 
 static struct work g_work __attribute__ ((aligned (64))) = {{ 0 }};
 static struct work g_prev_work __attribute__ ((aligned (64))) = {{ 0 }};  // 직전 작업 캐시
-double g_work_time = 0.0;  // 정밀한 타이밍을 위해 double로 변경
+time_t g_work_time = 0;
 pthread_rwlock_t g_work_lock;
 static bool   submit_old = false;
 static bool   speed_submit = true;  // 스피드 제출 모드 활성화
@@ -2090,9 +2090,7 @@ static void stratum_gen_work( struct stratum_ctx *sctx, struct work *g_work )
    algo_gate.set_work_data_endian( g_work );
    diff_to_hash( g_work->target, g_work->targetdiff );
 
-   struct timeval tv;
-   gettimeofday(&tv, NULL);
-   g_work_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+   g_work_time = time(NULL);
    restart_threads();
    pthread_rwlock_unlock( &g_work_lock );
 
@@ -2293,9 +2291,7 @@ static void *miner_thread( void *userdata )
        else if ( !opt_benchmark ) // GBT or getwork
        {
           pthread_rwlock_wrlock( &g_work_lock );
-          struct timeval tv;
-          gettimeofday(&tv, NULL);
-          double now = tv.tv_sec + tv.tv_usec / 1000000.0;
+          const time_t now = time(NULL);
           if ( ( ( now - g_work_time ) >= opt_scantime )
              || ( *nonceptr >= end_nonce ) )
           {
@@ -2597,9 +2593,7 @@ start:
                      g_work.targetdiff );
             applog(LOG_BLUE, "%s detected new block%s", short_url, netinfo);
 	       }
-	       struct timeval tv;
-	       gettimeofday(&tv, NULL);
-	       g_work_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+	       time(&g_work_time);
 	       restart_threads();
 	     }
       }

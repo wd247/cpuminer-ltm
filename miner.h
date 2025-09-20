@@ -816,7 +816,7 @@ extern double opt_target_factor;
 extern bool opt_randomize;
 extern bool allow_mininginfo;
 extern pthread_rwlock_t g_work_lock;
-extern double g_work_time;  // 정밀한 타이밍을 위해 double로 변경
+extern time_t g_work_time;
 extern bool opt_stratum_stats;
 extern int num_cpus;
 extern int num_cpugroups;
