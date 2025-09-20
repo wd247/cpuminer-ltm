@@ -219,9 +219,11 @@ static char const short_options[] =
 	"a:b:Bc:CDf:hK:m:n:N:p:Px:qr:R:s:t:T:o:u:O:V";
 
 static struct work g_work __attribute__ ((aligned (64))) = {{ 0 }};
+static struct work g_prev_work __attribute__ ((aligned (64))) = {{ 0 }};  // 직전 작업 캐시
 double g_work_time = 0.0;  // 정밀한 타이밍을 위해 double로 변경
 pthread_rwlock_t g_work_lock;
 static bool   submit_old = false;
+static bool   speed_submit = true;  // 스피드 제출 모드 활성화
 char*  lp_id;
 
 static void   workio_cmd_free(struct workio_cmd *wc);
@@ -1901,6 +1903,20 @@ bool submit_solution( struct work *work, const void *hash,
 //      applog( LOG_INFO, CL_LBL "Share may be stale, submitting anyway..." CL_N );
    
    work->sharediff = hash_to_diff( hash );
+   
+   // 스피드 제출: 현재 + 이전 작업 동시 제출
+   if (speed_submit && g_prev_work.height > 0) {
+       struct work speed_work;
+       memcpy(&speed_work, &g_prev_work, sizeof(struct work));
+       memcpy(speed_work.data, work->data, 80);  // 현재 논스로 이전 헤더 업데이트
+       speed_work.sharediff = work->sharediff;
+       
+       // 이전 작업으로 즉시 제출 (비동기)
+       if (opt_debug)
+           applog(LOG_INFO, "🚀 Speed submit to previous block %u", speed_work.height);
+       submit_work( thr, &speed_work );
+   }
+   
    if ( likely( submit_work( thr, work ) ) )
    {
      update_submit_stats( work, hash );
@@ -2560,6 +2576,14 @@ start:
 // This needs to be changed eventually to test the block height properly
 // using g_work.block_height .     
       start_job_id = g_work.job_id ? strdup(g_work.job_id) : NULL;
+      
+      // 스피드 제출을 위해 이전 작업 저장
+      if (speed_submit) {
+          memcpy(&g_prev_work, &g_work, sizeof(struct work));
+          if (opt_debug) 
+              applog(LOG_DEBUG, "Previous work cached for speed submit");
+      }
+      
 	   if (have_gbt)
 	      rc = gbt_work_decode(res, &g_work);
 	   else
