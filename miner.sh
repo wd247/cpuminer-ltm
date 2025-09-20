@@ -37,7 +37,7 @@ fi
 
 # n개의 Screen 세션 생성 및 ./restart.sh 실행
 for ((i=1; i<=n; i++)); do
-    session_name="miner_$i"
+    session_name="ltm_$i"
     echo "Screen 세션 생성: $session_name"
     screen -dmS "$session_name" bash -c "./restart.sh; exec bash"
     if [ $? -eq 0 ]; then
