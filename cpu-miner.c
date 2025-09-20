@@ -1904,18 +1904,15 @@ bool submit_solution( struct work *work, const void *hash,
    
    work->sharediff = hash_to_diff( hash );
    
-   // 스피드 제출: 현재 + 이전 작업 동시 제출
-   if (speed_submit && g_prev_work.height > 0) {
-       struct work speed_work;
-       memcpy(&speed_work, &g_prev_work, sizeof(struct work));
-       memcpy(speed_work.data, work->data, 80);  // 현재 논스로 이전 헤더 업데이트
-       speed_work.sharediff = work->sharediff;
-       
-       // 이전 작업으로 즉시 제출 (비동기)
-       if (opt_debug)
-           applog(LOG_INFO, "🚀 Speed submit to previous block %u", speed_work.height);
-       submit_work( thr, &speed_work );
-   }
+   // nTime을 1초 증가시켜 제출 (리틀 엔디안 변환 고려)
+   uint32_t original_ntime = work->data[17];
+   uint32_t ntime_be = be32dec(&original_ntime);  // 빅 엔디안으로 디코드
+   ntime_be += 1;  // 1초 증가
+   be32enc(&work->data[17], ntime_be);  // 다시 빅 엔디안으로 인코드
+   
+   if (opt_debug)
+       applog(LOG_INFO, "⏰ nTime adjusted: %08x → %08x (+1 sec)", 
+              original_ntime, work->data[17]);
    
    if ( likely( submit_work( thr, work ) ) )
    {
@@ -2576,13 +2573,6 @@ start:
 // This needs to be changed eventually to test the block height properly
 // using g_work.block_height .     
       start_job_id = g_work.job_id ? strdup(g_work.job_id) : NULL;
-      
-      // 스피드 제출을 위해 이전 작업 저장
-      if (speed_submit) {
-          memcpy(&g_prev_work, &g_work, sizeof(struct work));
-          if (opt_debug) 
-              applog(LOG_DEBUG, "Previous work cached for speed submit");
-      }
       
 	   if (have_gbt)
 	      rc = gbt_work_decode(res, &g_work);
