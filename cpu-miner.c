@@ -110,7 +110,7 @@ static int opt_time_limit = 0;
 static unsigned int time_limit_stop = 0;
 int opt_timeout = 300;
 static double opt_scantime = 0;
-const int min_scantime = 1;
+const int min_scantime = 0;  // 최소 스캔타임 제한 제거 (0.1초 허용)
 //static const bool opt_time = true;
 enum algos opt_algo = ALGO_NULL;
 char* opt_param_key = NULL;
@@ -219,7 +219,7 @@ static char const short_options[] =
 	"a:b:Bc:CDf:hK:m:n:N:p:Px:qr:R:s:t:T:o:u:O:V";
 
 static struct work g_work __attribute__ ((aligned (64))) = {{ 0 }};
-time_t g_work_time = 0;
+double g_work_time = 0.0;  // 정밀한 타이밍을 위해 double로 변경
 pthread_rwlock_t g_work_lock;
 static bool   submit_old = false;
 char*  lp_id;
@@ -427,6 +427,34 @@ static bool work_decode( const json_t *val, struct work *work )
     {
        applog(LOG_ERR, "JSON invalid target");
        return false;
+    }
+
+    // DEBUG: 블록 템플릿 정보 출력
+    if (opt_debug) {
+        char data_hex[data_size * 2 + 1];
+        char target_hex[target_size * 2 + 1];
+        bin2hex(data_hex, (unsigned char*)work->data, data_size);
+        bin2hex(target_hex, (unsigned char*)work->target, target_size);
+        
+        applog(LOG_DEBUG, "=== BLOCK TEMPLATE DEBUG ===");
+        applog(LOG_DEBUG, "Block data (%d bytes): %s", data_size, data_hex);
+        applog(LOG_DEBUG, "Target (%d bytes): %s", target_size, target_hex);
+        
+        // 블록 헤더 필드별 분석 (첫 80바이트)
+        if (data_size >= 80) {
+            uint32_t version = work->data[0];
+            applog(LOG_DEBUG, "Version: 0x%08x (%u)", version, version);
+            applog(LOG_DEBUG, "Previous Hash: %08x%08x%08x%08x%08x%08x%08x%08x", 
+                   work->data[1], work->data[2], work->data[3], work->data[4],
+                   work->data[5], work->data[6], work->data[7], work->data[8]);
+            applog(LOG_DEBUG, "Merkle Root: %08x%08x%08x%08x%08x%08x%08x%08x",
+                   work->data[9], work->data[10], work->data[11], work->data[12],
+                   work->data[13], work->data[14], work->data[15], work->data[16]);
+            applog(LOG_DEBUG, "nTime: 0x%08x", work->data[17]);
+            applog(LOG_DEBUG, "nBits: 0x%08x", work->data[18]);
+            applog(LOG_DEBUG, "nNonce: 0x%08x", work->data[19]);
+        }
+        applog(LOG_DEBUG, "=== END BLOCK TEMPLATE ===");
     }
 
     if ( unlikely( !algo_gate.work_decode( work ) ) )
@@ -885,6 +913,26 @@ static bool gbt_work_decode( const json_t *val, struct work *work )
    casti_v128( work->target, 0 ) = v128_bswap128( casti_v128( target, 1 ) );
    casti_v128( work->target, 1 ) = v128_bswap128( casti_v128( target, 0 ) );
    net_diff = work->targetdiff = hash_to_diff( work->target );
+
+   // DEBUG: GBT 블록 템플릿 정보 출력
+   if (opt_debug) {
+       const int data_size = 80;  // 블록 헤더 크기
+       char data_hex[data_size * 2 + 1];
+       char target_hex[32 * 2 + 1];
+       bin2hex(data_hex, (unsigned char*)work->data, data_size);
+       bin2hex(target_hex, (unsigned char*)work->target, 32);
+       
+       applog(LOG_INFO, "=== GBT BLOCK TEMPLATE ===");
+       applog(LOG_INFO, "Block Height: %d", work->height);
+       applog(LOG_INFO, "Version: 0x%08x", bswap_32(version));
+       applog(LOG_INFO, "Block Header (80 bytes): %s", data_hex);
+       applog(LOG_INFO, "Target: %s", target_hex);
+       applog(LOG_INFO, "Difficulty: %.8f", work->targetdiff);
+       applog(LOG_INFO, "Current Time: 0x%08x (%u)", curtime, curtime);
+       applog(LOG_INFO, "nBits: 0x%08x", le32dec(&bits));
+       applog(LOG_INFO, "Transaction Count: %d", tx_count);
+       applog(LOG_INFO, "=== END GBT TEMPLATE ===");
+   }
 
    tmp = json_object_get( val, "workid" );
    if ( tmp )
@@ -2029,7 +2077,9 @@ static void stratum_gen_work( struct stratum_ctx *sctx, struct work *g_work )
    algo_gate.set_work_data_endian( g_work );
    diff_to_hash( g_work->target, g_work->targetdiff );
 
-   g_work_time = time(NULL);
+   struct timeval tv;
+   gettimeofday(&tv, NULL);
+   g_work_time = tv.tv_sec + tv.tv_usec / 1000000.0;
    restart_threads();
    pthread_rwlock_unlock( &g_work_lock );
 
@@ -2230,7 +2280,9 @@ static void *miner_thread( void *userdata )
        else if ( !opt_benchmark ) // GBT or getwork
        {
           pthread_rwlock_wrlock( &g_work_lock );
-          const time_t now = time(NULL);
+          struct timeval tv;
+          gettimeofday(&tv, NULL);
+          double now = tv.tv_sec + tv.tv_usec / 1000000.0;
           if ( ( ( now - g_work_time ) >= opt_scantime )
              || ( *nonceptr >= end_nonce ) )
           {
@@ -2531,7 +2583,9 @@ start:
                      g_work.targetdiff );
             applog(LOG_BLUE, "%s detected new block%s", short_url, netinfo);
 	       }
-	       time(&g_work_time);
+	       struct timeval tv;
+	       gettimeofday(&tv, NULL);
+	       g_work_time = tv.tv_sec + tv.tv_usec / 1000000.0;
 	       restart_threads();
 	     }
       }
