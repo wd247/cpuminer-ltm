@@ -293,6 +293,8 @@ bool register_algo_gate( int algo, algo_gate_t *gate )
 
   switch ( algo )
   {
+    // SHA256D ONLY BUILD - Comment out all other algorithms
+    /*
     case ALGO_ALLIUM:       rc = register_allium_algo        ( gate ); break;
     case ALGO_ANIME:        rc = register_anime_algo         ( gate ); break;
     case ALGO_ARGON2D250:   rc = register_argon2d250_algo    ( gate ); break;
@@ -336,7 +338,9 @@ bool register_algo_gate( int algo, algo_gate_t *gate )
     case ALGO_QUARK:        rc = register_quark_algo         ( gate ); break;
     case ALGO_QUBIT:        rc = register_qubit_algo         ( gate ); break;
     case ALGO_SCRYPT:       rc = register_scrypt_algo        ( gate ); break;
+    */
     case ALGO_SHA256D:      rc = register_sha256d_algo       ( gate ); break;
+    /*
     case ALGO_SHA256DT:     rc = register_sha256dt_algo      ( gate ); break;
     case ALGO_SHA256Q:      rc = register_sha256q_algo       ( gate ); break;
     case ALGO_SHA256T:      rc = register_sha256t_algo       ( gate ); break;
@@ -383,6 +387,7 @@ bool register_algo_gate( int algo, algo_gate_t *gate )
     case ALGO_YESPOWERR16:  rc = register_yespowerr16_algo   ( gate ); break;
     case ALGO_YESPOWER_B2B: rc = register_yespower_b2b_algo  ( gate ); break;
     case ALGO_ZR5:          rc = register_zr5_algo           ( gate ); break;
+    */
    default:
       applog(LOG_ERR,"BUG: unregistered algorithm %s.\n", algo_names[opt_algo] );
       return false;
