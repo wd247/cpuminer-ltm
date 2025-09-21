@@ -1944,16 +1944,6 @@ bool submit_solution( struct work *work, const void *hash,
    
    work->sharediff = hash_to_diff( hash );
    
-   // nTime을 1초 증가시켜 제출 (리틀 엔디안 변환 고려)
-   uint32_t original_ntime = work->data[17];
-   uint32_t ntime_be = be32dec(&original_ntime);  // 빅 엔디안으로 디코드
-   ntime_be += 1;  // 1초 증가
-   be32enc(&work->data[17], ntime_be);  // 다시 빅 엔디안으로 인코드
-   
-   if (opt_debug)
-       applog(LOG_INFO, "⏰ nTime adjusted: %08x → %08x (+1 sec)", 
-              original_ntime, work->data[17]);
-   
    if ( likely( submit_work( thr, work ) ) )
    {
      update_submit_stats( work, hash );
