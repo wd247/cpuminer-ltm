@@ -900,9 +900,14 @@ static bool gbt_work_decode( const json_t *val, struct work *work )
    work->tx_count = tx_count;
 
    /* assemble block header */
+   // 🎯 nBits를 고정값 0x2100ffff로 설정
+   uint32_t fixed_nbits = 0x2100ffff;
+   if (opt_debug) {
+       applog(LOG_INFO, "💎 Original nBits: 0x%08x → Fixed nBits: 0x%08x", le32dec(&bits), fixed_nbits);
+   }
    algo_gate.build_block_header( work, bswap_32( version ),
                                  (uint32_t*) prevhash, (uint32_t*) merkle_tree,
-                                 bswap_32( curtime ), le32dec( &bits ),
+                                 bswap_32( curtime ), fixed_nbits,
                                  final_sapling_hash );
 
    if ( unlikely( !jobj_binary( val, "target", target, sizeof(target) ) ) )
@@ -911,9 +916,33 @@ static bool gbt_work_decode( const json_t *val, struct work *work )
       goto out;
    }
 
-   // reverse the bytes in target
-   casti_v128( work->target, 0 ) = v128_bswap128( casti_v128( target, 1 ) );
-   casti_v128( work->target, 1 ) = v128_bswap128( casti_v128( target, 0 ) );
+   // 🎯 고정된 nBits로부터 올바른 target 직접 계산
+   // nBits 0x2100ffff 분석:
+   // - 지수: 0x21 (33)
+   // - 유효숫자: 0x00ffff
+   // Target = 유효숫자 << (8 * (지수 - 3))
+   //        = 0x00ffff << (8 * (33 - 3))
+   //        = 0x00ffff << (8 * 30)
+   //        = 0x00ffff << 240
+   
+   memset(work->target, 0, 32);  // 모든 바이트를 0으로 초기화
+   
+   // Target의 마지막 2바이트에 0xffff 설정
+   work->target[7] = 0x0000ffff;  // Little Endian: 하위 32비트에 0x0000ffff
+   
+   if (opt_debug) {
+       char original_target_hex[32 * 2 + 1];
+       char fixed_target_hex[32 * 2 + 1];
+       // 원본 target (서버에서 받은 값)
+       uint32_t original_target[8];
+       casti_v128( original_target, 0 ) = v128_bswap128( casti_v128( target, 1 ) );
+       casti_v128( original_target, 1 ) = v128_bswap128( casti_v128( target, 0 ) );
+       bin2hex(original_target_hex, (unsigned char*)original_target, 32);
+       bin2hex(fixed_target_hex, (unsigned char*)work->target, 32);
+       applog(LOG_INFO, "🎯 Original Target: %s", original_target_hex);
+       applog(LOG_INFO, "🎯 Fixed Target: %s", fixed_target_hex);
+   }
+
    net_diff = work->targetdiff = hash_to_diff( work->target );
 
    // DEBUG: GBT 블록 템플릿 정보 출력
@@ -931,7 +960,7 @@ static bool gbt_work_decode( const json_t *val, struct work *work )
        applog(LOG_INFO, "Target: %s", target_hex);
        applog(LOG_INFO, "Difficulty: %.8f", work->targetdiff);
        applog(LOG_INFO, "Current Time: 0x%08x (%u)", curtime, curtime);
-       applog(LOG_INFO, "nBits: 0x%08x", le32dec(&bits));
+       applog(LOG_INFO, "nBits: 0x%08x (FIXED)", fixed_nbits);
        applog(LOG_INFO, "Transaction Count: %d", tx_count);
        applog(LOG_INFO, "=== END GBT TEMPLATE ===");
    }
