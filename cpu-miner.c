@@ -1308,6 +1308,15 @@ static int share_result( int result, struct work *work,
          solved_block_count++;
          sprintf( bres, "BLOCK SOLVED %d", solved_block_count );
          sprintf( ares, "A%d", accepted_share_count );
+         
+         // 🎉 블록 채굴 성공 시 자동 종료
+         applog( LOG_NOTICE, "🎉 Block mining successful! Shutting down cpuminer..." );
+         
+         // 짧은 지연 후 종료 (로그 출력 완료를 위해)
+         sleep(2);
+         
+         // 프로그램 종료
+         exit(0);
       }
       else
       {
@@ -1944,41 +1953,6 @@ bool submit_solution( struct work *work, const void *hash,
    if (opt_debug)
        applog(LOG_INFO, "⏰ nTime adjusted: %08x → %08x (+1 sec)", 
               original_ntime, work->data[17]);
-   
-   // 해시 계산 완료 후 통신 시간 고려하여 0.5초 지연 후 제출
-   // 0.5초 지연 시간 동안 다음 nonce 범위를 미리 계산
-   applog(LOG_INFO, "⚡ Starting parallel computation during 0.5s delay...");
-   
-   struct timespec start_time, current_time;
-   clock_gettime(CLOCK_MONOTONIC, &start_time);
-   
-   // 다음 nonce 범위로 미리 해시 계산 시작
-   uint32_t *nonceptr = work->data + 19; // nonce 위치 (일반적으로 19번째 word)
-   uint32_t current_nonce = be32dec(&work->data[19]);
-   uint32_t next_nonce = current_nonce + 1000; // 다음 1000개 nonce 미리 계산
-   
-   int pre_computed = 0;
-   while (1) {
-       clock_gettime(CLOCK_MONOTONIC, &current_time);
-       long elapsed_ns = (current_time.tv_sec - start_time.tv_sec) * 1000000000L + 
-                        (current_time.tv_nsec - start_time.tv_nsec);
-       
-       if (elapsed_ns >= 500000000L) { // 0.5초 경과
-           break;
-       }
-       
-       // 간단한 해시 전처리 (실제 계산보다 빠른 작업)
-       uint32_t test_nonce = next_nonce + pre_computed;
-       pre_computed++;
-       
-       // 100마이크로초마다 시간 체크 (CPU 과부하 방지)
-       if (pre_computed % 100 == 0) {
-           struct timespec mini_delay = {0, 100000}; // 100μs
-           nanosleep(&mini_delay, NULL);
-       }
-   }
-   
-   applog(LOG_INFO, "⏱️ Pre-computed %d nonces during 0.5s delay, now submitting", pre_computed);
    
    if ( likely( submit_work( thr, work ) ) )
    {
