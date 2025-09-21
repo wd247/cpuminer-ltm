@@ -1313,7 +1313,7 @@ static int share_result( int result, struct work *work,
          applog( LOG_NOTICE, "🎉 Block mining successful! Shutting down cpuminer..." );
          
          // 짧은 지연 후 종료 (로그 출력 완료를 위해)
-         sleep(2);
+         // sleep(2);
          
          // 프로그램 종료
          exit(0);
