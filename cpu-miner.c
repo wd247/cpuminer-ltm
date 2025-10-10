@@ -1075,7 +1075,7 @@ void report_summary_log( bool force )
      if ( rejected_share_count > ( submitted_share_count / 2 ) )
      {
         applog(LOG_WARNING,"🚫 Excessive rejected share rate detected, but continuing mining...");
-        // exit(1);  // 자동 종료 비활성화
+        exit(0);  // 종료 프로세스
      } 
      else if ( rejected_share_count > ( submitted_share_count / 10 ) )
        applog(LOG_WARNING,"High rejected share rate, check settings.");
